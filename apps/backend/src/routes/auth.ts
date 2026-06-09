@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { db } from '../db/index.js'
 import { users } from '../db/schema.js'
-import { verifyTelegramAuth, type TelegramAuthData } from '../middleware/auth.js'
+import { verifyTelegramAuth, type TelegramAuthData, authMiddleware } from '../middleware/auth.js'
 import { eq } from 'drizzle-orm'
 
 const telegramAuthSchema = z.object({
@@ -60,6 +60,13 @@ export async function authRoutes(app: FastifyInstance) {
     )
 
     return reply.send({ token, user })
+  })
+
+  // GET /auth/me — get current user (validates JWT)
+  app.get('/auth/me', { preHandler: authMiddleware }, async (request, reply) => {
+    const user = await db.query.users.findFirst({ where: eq(users.id, request.userId) })
+    if (!user) return reply.status(404).send({ error: 'User not found' })
+    return reply.send({ user })
   })
 
   // PATCH /auth/language — update user's preferred language

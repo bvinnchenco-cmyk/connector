@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Connector",
+    "slug": "connector",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "connector",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.connector.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Needed for voice messages",
+        "NSCameraUsageDescription": "Needed for video messages"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "package": "com.connector.app",
+      "permissions": ["RECORD_AUDIO", "CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-av",
+      ["expo-camera", { "cameraPermission": "Allow Connector to access camera for video messages." }]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
