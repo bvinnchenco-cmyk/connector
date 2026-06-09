@@ -56,6 +56,26 @@ services:
         limits:
           memory: 4G   # XTTS needs ~2-3GB RAM
 
+  ticket-agent:
+    build:
+      context: ./apps/ticket-agent
+      dockerfile: Dockerfile
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TICKET_BOT_TOKEN}
+      ADMIN_TELEGRAM_IDS: ${TICKET_ADMIN_IDS}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      VERCEL_TOKEN: ${VERCEL_TOKEN}
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      TWITTER_API_KEY: ${TWITTER_API_KEY}
+      TWITTER_API_SECRET: ${TWITTER_API_SECRET}
+      TWITTER_ACCESS_TOKEN: ${TWITTER_ACCESS_TOKEN}
+      TWITTER_ACCESS_SECRET: ${TWITTER_ACCESS_SECRET}
+      INSTAGRAM_USERNAME: ${INSTAGRAM_USERNAME}
+      INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD}
+      THREADS_ACCESS_TOKEN: ${THREADS_ACCESS_TOKEN}
+      THREADS_USER_ID: ${THREADS_USER_ID}
+    restart: unless-stopped
+
 volumes:
   pg_data:
   uploads:
