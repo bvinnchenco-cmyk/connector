@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.env.local
+google-credentials.json
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+/tmp/
+uploads/
+outputs/
