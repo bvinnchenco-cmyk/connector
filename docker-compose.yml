@@ -12,10 +12,21 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
-  redis:
-    image: redis:7-alpine
+  # Free self-hosted translation — no API key, unlimited
+  libretranslate:
+    image: libretranslate/libretranslate:latest
     ports:
-      - "6379:6379"
+      - "5000:5000"
+    environment:
+      LT_LOAD_ONLY: "en,ru,fr,de,es,it,zh,ja,ko,ar,pt,tr,th,vi"  # only needed langs
+      LT_UPDATE_MODELS: "true"
+    volumes:
+      - lt_models:/home/libretranslate/.local/share/argos-translate/packages
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/languages"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   backend:
     build:
@@ -27,14 +38,14 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connector
       JWT_SECRET: ${JWT_SECRET:-dev_secret_change_in_prod}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY}
+      LIBRETRANSLATE_URL: http://libretranslate:5000
       AI_PIPELINE_URL: http://ai-pipeline:8000
       UPLOAD_DIR: /uploads
     volumes:
       - uploads:/uploads
     depends_on:
       - postgres
-      - ai-pipeline
+      - libretranslate
 
   ai-pipeline:
     build:
@@ -43,21 +54,24 @@ services:
     ports:
       - "8000:8000"
     environment:
-      GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY}
+      LIBRETRANSLATE_URL: http://libretranslate:5000
       BACKEND_URL: http://backend:3000
       UPLOAD_DIR: /uploads
       OUTPUT_DIR: /outputs
     volumes:
       - uploads:/uploads
       - outputs:/outputs
-      - xtts_models:/root/.local/share/tts  # cache downloaded models
+      - xtts_models:/root/.local/share/tts
+    depends_on:
+      - libretranslate
     deploy:
       resources:
         limits:
-          memory: 4G   # XTTS needs ~2-3GB RAM
+          memory: 4G
 
 volumes:
   pg_data:
   uploads:
   outputs:
   xtts_models:
+  lt_models:
