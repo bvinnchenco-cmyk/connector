@@ -18,14 +18,15 @@ from pipeline.video import replace_audio_in_video
 
 app = FastAPI(title="Connector AI Pipeline")
 
-JOBS: dict[str, dict] = {}  # in-memory; replace with Redis for prod
+JOBS: dict[str, dict] = {}
 
 
 class Settings(BaseSettings):
     upload_dir: str = "/tmp/connector-uploads"
     output_dir: str = "/tmp/connector-outputs"
     backend_url: str = "http://localhost:3000"
-    google_translate_api_key: str = ""
+    libretranslate_url: str = "http://libretranslate:5000"
+    port: int = 8000
 
     class Config:
         env_file = ".env"
@@ -37,15 +38,20 @@ Path(settings.output_dir).mkdir(parents=True, exist_ok=True)
 
 class VoiceTranslateRequest(BaseModel):
     messageId: str
-    mediaUrl: str          # local file path or URL
+    mediaUrl: str
     sourceLang: str
     targetLang: str
-    voiceSampleUrl: str | None = None   # for voice cloning
+    voiceSampleUrl: str | None = None
 
 
 class TranscribeRequest(BaseModel):
     audioUrl: str
     languageCode: str
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True}
 
 
 @app.post("/jobs/voice-translate")
@@ -74,13 +80,13 @@ async def run_voice_translation(job_id: str, req: VoiceTranslateRequest):
         media_path = req.mediaUrl
         is_video = media_path.endswith(('.mp4', '.mov', '.webm'))
 
-        # 1. Transcribe
+        # 1. Transcribe (faster-whisper, free local)
         transcript = await transcribe_audio(media_path, req.sourceLang)
 
-        # 2. Translate text
+        # 2. Translate (LibreTranslate → Google unofficial → MyMemory)
         translated_text = await translate_text(transcript, req.targetLang, req.sourceLang)
 
-        # 3. Synthesize in sender's voice (voice cloning with XTTS)
+        # 3. Synthesize in sender's voice (XTTS v2, free local)
         output_audio_path = os.path.join(
             settings.output_dir,
             f"{req.messageId}_{req.targetLang}.wav"
@@ -94,7 +100,7 @@ async def run_voice_translation(job_id: str, req: VoiceTranslateRequest):
 
         output_url = f"/outputs/{os.path.basename(output_audio_path)}"
 
-        # 4. For video notes: replace audio track
+        # 4. For video notes: replace audio track with translated audio
         if is_video:
             output_video_path = output_audio_path.replace('.wav', '.mp4')
             await replace_audio_in_video(media_path, output_audio_path, output_video_path)

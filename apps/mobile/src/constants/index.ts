@@ -1,6 +1,6 @@
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 export const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? 'ws://localhost:3000/ws'
-export const TELEGRAM_BOT_NAME = process.env.EXPO_PUBLIC_TELEGRAM_BOT_NAME ?? 'connector_bot'
+export const TELEGRAM_BOT_NAME = process.env.EXPO_PUBLIC_TELEGRAM_BOT_NAME ?? 'Connector_AppBot'
 
 export const LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
