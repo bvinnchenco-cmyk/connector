@@ -29,9 +29,14 @@ export default function ChatsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity onPress={() => router.push('/(app)/search')} style={styles.newChat}>
-          <Text style={styles.newChatIcon}>✏️</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => router.push('/(app)/guide')} style={styles.guideBtn}>
+            <Text style={styles.guideBtnText}>🌴 Гид</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(app)/search')} style={styles.newChat}>
+            <Text style={styles.newChatIcon}>✏️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {chats.length === 0 ? (
@@ -77,6 +82,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
   },
   headerTitle: { color: '#fff', fontSize: 28, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  guideBtn: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  guideBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   newChat: { padding: 8 },
   newChatIcon: { fontSize: 22 },
   chatItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
