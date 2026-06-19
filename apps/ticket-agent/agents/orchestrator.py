@@ -38,6 +38,7 @@ class PipelineSession:
     deployment: dict | None = None
     social_results: list = field(default_factory=list)
     video_paths: dict = field(default_factory=dict)   # {"square": "/tmp/...", "portrait": "/tmp/..."}
+    scheduled_time: str | None = None                 # ISO 8601, set by user before publishing
     state: PipelineState = PipelineState.IDLE
     error: str | None = None
 
@@ -166,21 +167,27 @@ async def run_social_publish(session: PipelineSession, send_update) -> bool:
 
     try:
         site_url = session.deployment["subdomain_url"]
-        results = await asyncio.to_thread(
-            publish_all, session.concert_info, site_url, None
+        publish_result = await asyncio.to_thread(
+            publish_all,
+            session.concert_info,
+            site_url,
+            None,                      # image_path — TODO: add poster generation
+            session.video_paths,
+            session.scheduled_time,
         )
-        session.social_results = results
+        session.social_results = publish_result["results"]
+        captions = publish_result["captions"]
 
-        posted = [r["platform"] for r in results if r.get("status") == "posted"]
-        skipped = [r["platform"] for r in results if r.get("status") in ("skipped", "error")]
+        posted = [r["platform"] for r in session.social_results if r.get("status") == "posted"]
+        skipped = [r["platform"] for r in session.social_results if r.get("status") in ("skipped", "error")]
 
         session.state = PipelineState.DONE
-        msg = f"🎉 *All done!*\n\n"
+        msg = "🎉 *Готово!*\n\n"
         if posted:
-            msg += f"✅ Posted to: {', '.join(posted)}\n"
+            msg += f"✅ Опубликовано: {', '.join(posted)}\n"
         if skipped:
-            msg += f"⚠️ Skipped: {', '.join(skipped)}\n"
-        msg += f"\n🌐 Site: {site_url}\n🎫 Tickets: {session.concert_info['ticket_url']}"
+            msg += f"⚠️ Пропущено: {', '.join(skipped)}\n"
+        msg += f"\n🌐 Сайт: {site_url}\n🎫 Билеты: {session.concert_info['ticket_url']}"
 
         await send_update(msg)
         return True

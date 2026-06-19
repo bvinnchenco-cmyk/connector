@@ -26,9 +26,11 @@ from ..agents.orchestrator import (
     run_research,
     run_build_site,
     run_deploy,
+    run_render_video,
     run_social_publish,
     PipelineState,
 )
+import re
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -132,13 +134,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if session and session.state == PipelineState.AWAITING_APPROVAL:
         lower = text.lower()
 
-        if lower in ("approve", "yes", "ok", "✅", "deploy"):
+        if lower in ("approve", "да", "yes", "ok", "✅", "deploy", "опубликовать"):
             async def notify(msg: str):
                 await context.bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
 
             ok = await run_deploy(session, notify)
             if ok:
-                await run_social_publish(session, notify)
+                ok = await run_render_video(session, notify)
+            if ok:
+                # Ask for publishing time before posting
+                await send_md(update,
+                    "⏰ *На какое время запланировать публикацию?*\n\n"
+                    "Напиши время в формате: `пост 20:00` или `пост 2025-07-20 18:00`\n"
+                    "Или напиши `пост сейчас` для немедленной публикации."
+                )
+
+        elif lower.startswith("пост ") or lower.startswith("post "):
+            # Parse scheduled time from user message
+            time_str = re.sub(r'^(пост|post)\s+', '', lower).strip()
+            session = get_session(chat_id)
+
+            async def notify(msg: str):
+                await context.bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
+
+            if time_str in ("сейчас", "now"):
+                session.scheduled_time = None
+            else:
+                session.scheduled_time = time_str  # Metricool/social agents handle parsing
+
+            await run_social_publish(session, notify)
 
         elif lower.startswith("edit:"):
             instructions = text[5:].strip()
