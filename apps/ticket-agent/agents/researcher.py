@@ -29,20 +29,23 @@ extract and enrich the following structured information.
 Use web search to find:
 1. Artist biography and genre
 2. Concert/tour details (date, venue, city)
-3. High-quality official images of the artist (from official sites, press kits)
-4. Any notable recent achievements or albums
+3. High-quality official photos of the artist (from official sites, Wikipedia, Last.fm, press kits)
+4. Notable recent achievements, albums, tours
+5. Atmosphere descriptions — what the live show is known for (pyrotechnics, crowd energy, etc.)
 
 Return ONLY valid JSON matching this schema:
 {
   "artist_name": "string",
   "event_title": "string",
-  "date": "string (human readable, e.g. 'June 15, 2025')",
+  "date": "string (human readable in Russian, e.g. '15 июня 2025')",
   "venue": "string",
   "city": "string",
   "country": "string",
-  "description": "string (2-3 sentences, exciting tone)",
+  "description": "string (3-4 sentences in Russian, exciting emotional tone)",
   "genre": "string",
   "image_urls": ["url1", "url2", "url3"],
+  "web_context": "string (key facts found online: career highlights, live show reputation, fan base size)",
+  "discount": number (extract from input if mentioned, default 15),
   "ticket_url": "string"
 }"""
 
