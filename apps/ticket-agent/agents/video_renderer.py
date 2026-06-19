@@ -29,7 +29,7 @@ def render_video(
     Returns:
         Absolute path to the rendered MP4 file
     """
-    from .web_builder import slugify
+    from agents.web_builder import slugify
 
     artist_slug = slugify(concert_info["artist_name"])
 

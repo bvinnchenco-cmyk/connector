@@ -7,11 +7,11 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 
-from .researcher import research_concert, ConcertInfo
-from .web_builder import build_website, save_website, slugify
-from .deployer import deploy
-from .social_media import publish_all
-from .video_renderer import render_all_formats
+from agents.researcher import research_concert, ConcertInfo
+from agents.web_builder import build_website, save_website, slugify
+from agents.deployer import deploy
+from agents.social_media import publish_all
+from agents.video_renderer import render_all_formats
 
 logger = logging.getLogger(__name__)
 

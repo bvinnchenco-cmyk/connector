@@ -20,7 +20,11 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode
 
-from ..agents.orchestrator import (
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from agents.orchestrator import (
     create_session,
     get_session,
     run_research,
