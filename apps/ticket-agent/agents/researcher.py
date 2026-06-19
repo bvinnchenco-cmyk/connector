@@ -171,13 +171,13 @@ async def _images_from_duckduckgo(artist_name: str) -> list[str]:
 
 async def fetch_artist_images(artist_name: str) -> list[str]:
     """
-    Tries all image sources in priority order, returns up to 5 unique URLs.
+    Tries Wikipedia first, then DuckDuckGo as fallback. Returns up to 5 unique URLs.
+    Last.fm and Brave are available if API keys are configured in .env.
     """
-    # Run all sources in parallel
     results = await asyncio.gather(
         _images_from_wikipedia(artist_name),
-        _images_from_lastfm(artist_name),
-        _images_from_brave(artist_name),
+        _images_from_lastfm(artist_name),   # skipped if no LASTFM_API_KEY
+        _images_from_brave(artist_name),     # skipped if no BRAVE_API_KEY
         _images_from_duckduckgo(artist_name),
         return_exceptions=True
     )
