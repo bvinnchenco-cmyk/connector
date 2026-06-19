@@ -11,6 +11,7 @@ from .researcher import research_concert, ConcertInfo
 from .web_builder import build_website, save_website, slugify
 from .deployer import deploy
 from .social_media import publish_all
+from .video_renderer import render_all_formats
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class PipelineSession:
     html_path: str | None = None
     deployment: dict | None = None
     social_results: list = field(default_factory=list)
+    video_paths: dict = field(default_factory=dict)   # {"square": "/tmp/...", "portrait": "/tmp/..."}
     state: PipelineState = PipelineState.IDLE
     error: str | None = None
 
@@ -126,6 +128,34 @@ async def run_deploy(session: PipelineSession, send_update) -> bool:
         session.state = PipelineState.FAILED
         session.error = str(e)
         await send_update(f"❌ Deployment failed: {e}")
+        return False
+
+
+async def run_render_video(session: PipelineSession, send_update) -> bool:
+    """Step 3b: Render cinematic promo video via Remotion."""
+    await send_update("🎬 Рендерю промо-видео (15 сек)... Это займёт 1-2 минуты.")
+
+    # Pass site_url into concert_info so video shows it
+    session.concert_info["site_url"] = session.deployment["subdomain_url"]
+
+    try:
+        paths = await asyncio.to_thread(render_all_formats, session.concert_info)
+        session.video_paths = paths
+
+        lines = []
+        for fmt, path in paths.items():
+            status = "✅" if not path.startswith("ERROR") else "❌"
+            lines.append(f"{status} {fmt}: `{path}`")
+
+        await send_update(
+            "🎬 *Видео готово!*\n\n"
+            + "\n".join(lines)
+            + "\n\nПосмотри результат и напиши *approve* для публикации или *edit video: [что изменить]*"
+        )
+        return True
+    except Exception as e:
+        session.error = str(e)
+        await send_update(f"❌ Рендер видео упал: {e}")
         return False
 
 
