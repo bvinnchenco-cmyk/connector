@@ -207,4 +207,6 @@ def run_bot():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("Bot started.")
+    import asyncio
+    asyncio.set_event_loop(asyncio.new_event_loop())
     app.run_polling(drop_pending_updates=True)
