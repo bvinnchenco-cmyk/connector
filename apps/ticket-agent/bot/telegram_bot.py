@@ -197,7 +197,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def run_bot():
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    token = os.environ.get("TICKET_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
     app = Application.builder().token(token).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
