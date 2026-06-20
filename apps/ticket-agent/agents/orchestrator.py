@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 
-from agents.researcher import research_concert, ConcertInfo
+from agents.researcher import research_concert
 from agents.web_builder import build_website, save_website, slugify
 from agents.deployer import deploy
 from agents.social_media import publish_all
@@ -32,7 +32,7 @@ class PipelineSession:
     chat_id: int
     raw_input: str
     ticket_url: str
-    concert_info: ConcertInfo | None = None
+    concert_info: dict | None = None
     html_content: str | None = None
     html_path: str | None = None
     deployment: dict | None = None
