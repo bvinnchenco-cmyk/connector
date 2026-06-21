@@ -40,6 +40,6 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = HTTPServer(("0.0.0.0", 9000), WebhookHandler)
-    print("Webhook server listening on port 9000")
+    server = HTTPServer(("0.0.0.0", 8080), WebhookHandler)
+    print("Webhook server listening on port 8080")
     server.serve_forever()
