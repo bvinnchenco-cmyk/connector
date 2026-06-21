@@ -65,10 +65,10 @@ async def send_md(update: Update, text: str):
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_md(update,
-        "🎫 *Concert Ticket Agent*\n\n"
-        "Send me a concert event and I'll build a landing page + publish it everywhere.\n\n"
-        "Use `/event <description>` to start.\n\n"
-        "_Example:_ `/event Coldplay World Tour 2025 at Madison Square Garden on July 20`"
+        "🎫 *Агент продажи билетов*\n\n"
+        "Отправь мне описание концерта и я создам лендинг + опубликую везде.\n\n"
+        "Используй `/event <описание>` для старта.\n\n"
+        "_Пример:_ `/event Coldplay, Лужники Москва, 20 июля 2025`"
     )
 
 
@@ -78,7 +78,7 @@ async def cmd_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await send_md(update, "Usage: `/event <concert description>`")
+        await send_md(update, "Использование: `/event <описание концерта>`")
         return
 
     description = " ".join(context.args)
@@ -86,23 +86,23 @@ async def cmd_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _waiting_for_url[chat_id] = description
 
     await send_md(update,
-        f"Got it! 🎤\n\n*Event:* {description}\n\n"
-        "Now send me the *ticket purchase URL* (e.g. ticketmaster link):"
+        f"Принято! 🎤\n\n*Событие:* {description}\n\n"
+        "Теперь отправь *ссылку на покупку билетов:*"
     )
 
 
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = get_session(update.effective_chat.id)
     if not session:
-        await send_md(update, "No active pipeline. Use `/event` to start.")
+        await send_md(update, "Нет активного процесса. Используй `/event` для старта.")
         return
-    await send_md(update, f"*Status:* `{session.state.value}`")
+    await send_md(update, f"*Статус:* `{session.state.value}`")
 
 
 async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     _waiting_for_url.pop(chat_id, None)
-    await send_md(update, "Pipeline cancelled. Use `/event` to start a new one.")
+    await send_md(update, "Процесс отменён. Используй `/event` для нового события.")
 
 
 # ── Message handler ────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ── Waiting for ticket URL ────────────────────────────────────────────────
     if chat_id in _waiting_for_url:
         if not text.startswith("http"):
-            await send_md(update, "⚠️ Please send a valid URL starting with `http`")
+            await send_md(update, "⚠️ Отправь корректную ссылку, начинающуюся с `http`")
             return
 
         raw_input = _waiting_for_url.pop(chat_id)
@@ -168,9 +168,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await run_social_publish(session, notify)
 
-        elif lower.startswith("edit:"):
-            instructions = text[5:].strip()
-            await send_md(update, f"✏️ Applying edits: _{instructions}_\n\nRebuilding...")
+        elif lower.startswith("edit:") or lower.startswith("правка:"):
+            instructions = re.sub(r'^(edit:|правка:)\s*', '', text, flags=re.IGNORECASE).strip()
+            await send_md(update, f"✏️ Применяю правки: _{instructions}_\n\nПересоздаю сайт...")
 
             from ..agents.web_builder import build_website, save_website, slugify
             import asyncio
@@ -185,13 +185,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         else:
             await send_md(update,
-                "Reply with:\n"
-                "✅ *approve* — deploy the site\n"
-                "✏️ *edit: [what to change]* — request changes"
+                "Ответь:\n"
+                "✅ *approve* — задеплоить сайт\n"
+                "✏️ *edit: [что изменить]* — внести правки"
             )
         return
 
-    await send_md(update, "Use `/event <description>` to start a new concert pipeline.")
+    await send_md(update, "Используй `/event <описание>` чтобы начать новый концертный проект.")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
