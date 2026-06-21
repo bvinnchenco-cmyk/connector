@@ -6,6 +6,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Callable, Awaitable
 
 from agents.researcher import research_concert
 from agents.web_builder import build_website, save_website, slugify
@@ -56,7 +57,7 @@ def create_session(chat_id: int, raw_input: str, ticket_url: str) -> PipelineSes
     return session
 
 
-async def run_research(session: PipelineSession, send_update) -> bool:
+async def run_research(session: PipelineSession, send_update, send_file=None) -> bool:
     session.state = PipelineState.RESEARCHING
     await send_update("🔍 Собираю информацию об артисте и мероприятии...")
 
@@ -83,7 +84,7 @@ async def run_research(session: PipelineSession, send_update) -> bool:
         return False
 
 
-async def run_build_site(session: PipelineSession, send_update) -> bool:
+async def run_build_site(session: PipelineSession, send_update, send_file=None) -> bool:
     session.state = PipelineState.BUILDING_SITE
     await send_update("🎨 Создаю концертный лендинг... Это займёт около минуты.")
 
@@ -95,9 +96,15 @@ async def run_build_site(session: PipelineSession, send_update) -> bool:
         session.html_path = save_website(html, slug)
 
         session.state = PipelineState.AWAITING_APPROVAL
+
+        # Send HTML file for preview
+        if send_file:
+            await send_file(
+                session.html_path,
+                caption=f"🎨 Лендинг для *{session.concert_info['event_title']}* — открой в браузере для предпросмотра"
+            )
+
         await send_update(
-            f"✅ *Лендинг готов!*\n\n"
-            f"Создан сайт для *{session.concert_info['event_title']}*.\n\n"
             f"Что делаем дальше?\n"
             f"✅ *approve* — задеплоить и опубликовать\n"
             f"✏️ *правка: [что изменить]* — внести правки"
@@ -110,7 +117,7 @@ async def run_build_site(session: PipelineSession, send_update) -> bool:
         return False
 
 
-async def run_deploy(session: PipelineSession, send_update) -> bool:
+async def run_deploy(session: PipelineSession, send_update, send_file=None) -> bool:
     session.state = PipelineState.DEPLOYING
     await send_update("🚀 Публикую сайт на хостинг...")
 
@@ -128,7 +135,7 @@ async def run_deploy(session: PipelineSession, send_update) -> bool:
         return False
 
 
-async def run_render_video(session: PipelineSession, send_update) -> bool:
+async def run_render_video(session: PipelineSession, send_update, send_file=None) -> bool:
     await send_update("🎬 Рендерю промо-видео (15 сек)... Это займёт 1-2 минуты.")
 
     session.concert_info["site_url"] = session.deployment["subdomain_url"]
@@ -137,15 +144,14 @@ async def run_render_video(session: PipelineSession, send_update) -> bool:
         paths = await asyncio.to_thread(render_all_formats, session.concert_info)
         session.video_paths = paths
 
-        lines = []
-        for fmt, path in paths.items():
-            status = "✅" if not str(path).startswith("ERROR") else "❌"
-            lines.append(f"{status} {fmt}: `{path}`")
+        await send_update("🎬 *Видео готово!* Отправляю файлы...")
 
-        await send_update(
-            "🎬 *Видео готово!*\n\n"
-            + "\n".join(lines)
-        )
+        if send_file:
+            for fmt, path in paths.items():
+                if not str(path).startswith("ERROR"):
+                    label = {"square": "квадрат 1:1", "portrait": "портрет 9:16"}.get(fmt, fmt)
+                    await send_file(path, caption=f"🎬 Промо-видео ({label})")
+
         return True
     except Exception as e:
         session.error = str(e)
@@ -153,7 +159,7 @@ async def run_render_video(session: PipelineSession, send_update) -> bool:
         return False
 
 
-async def run_social_publish(session: PipelineSession, send_update) -> bool:
+async def run_social_publish(session: PipelineSession, send_update, send_file=None) -> bool:
     session.state = PipelineState.PUBLISHING_SOCIAL
     await send_update("📢 Публикую в социальные сети...")
 

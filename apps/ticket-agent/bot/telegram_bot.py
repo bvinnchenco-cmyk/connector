@@ -9,19 +9,17 @@ Usage flow:
 import os
 import logging
 import re
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
     ContextTypes,
     filters,
 )
 from telegram.constants import ParseMode
 
 import sys
-import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.orchestrator import (
@@ -34,7 +32,6 @@ from agents.orchestrator import (
     run_social_publish,
     PipelineState,
 )
-import re
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -53,12 +50,33 @@ def is_admin(user_id: int) -> bool:
     return not admin_ids or user_id in admin_ids
 
 
-# ── State machine: waiting for ticket URL ──────────────────────────────────────
-_waiting_for_url: dict[int, str] = {}  # chat_id → raw_event_description
+_waiting_for_url: dict[int, str] = {}
 
 
 async def send_md(update: Update, text: str):
     await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
+
+def make_notifiers(chat_id: int, bot):
+    """Returns (send_update, send_file) callbacks for the given chat."""
+
+    async def send_update(msg: str):
+        await bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
+
+    async def send_file(path: str, caption: str = ""):
+        try:
+            with open(path, "rb") as f:
+                await bot.send_document(
+                    chat_id,
+                    document=f,
+                    filename=os.path.basename(path),
+                    caption=caption,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+        except Exception as e:
+            await bot.send_message(chat_id, f"⚠️ Не удалось отправить файл: {e}")
+
+    return send_update, send_file
 
 
 # ── Command handlers ───────────────────────────────────────────────────────────
@@ -74,7 +92,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
-        await update.message.reply_text("⛔ Not authorized.")
+        await update.message.reply_text("⛔ Нет доступа.")
         return
 
     if not context.args:
@@ -124,13 +142,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ticket_url = text
         session = create_session(chat_id, raw_input, ticket_url)
 
-        async def notify(msg: str):
-            await context.bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
+        notify, send_file = make_notifiers(chat_id, context.bot)
 
-        # Start pipeline
-        ok = await run_research(session, notify)
+        ok = await run_research(session, notify, send_file)
         if ok:
-            await run_build_site(session, notify)
+            await run_build_site(session, notify, send_file)
         return
 
     # ── Approval / edit flow ──────────────────────────────────────────────────
@@ -139,14 +155,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lower = text.lower()
 
         if lower in ("approve", "да", "yes", "ok", "✅", "deploy", "опубликовать"):
-            async def notify(msg: str):
-                await context.bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
+            notify, send_file = make_notifiers(chat_id, context.bot)
 
-            ok = await run_deploy(session, notify)
+            ok = await run_deploy(session, notify, send_file)
             if ok:
-                ok = await run_render_video(session, notify)
+                ok = await run_render_video(session, notify, send_file)
             if ok:
-                # Ask for publishing time before posting
                 await send_md(update,
                     "⏰ *На какое время запланировать публикацию?*\n\n"
                     "Напиши время в формате: `пост 20:00` или `пост 2025-07-20 18:00`\n"
@@ -154,40 +168,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
         elif lower.startswith("пост ") or lower.startswith("post "):
-            # Parse scheduled time from user message
             time_str = re.sub(r'^(пост|post)\s+', '', lower).strip()
-            session = get_session(chat_id)
-
-            async def notify(msg: str):
-                await context.bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
+            notify, send_file = make_notifiers(chat_id, context.bot)
 
             if time_str in ("сейчас", "now"):
                 session.scheduled_time = None
             else:
-                session.scheduled_time = time_str  # Metricool/social agents handle parsing
+                session.scheduled_time = time_str
 
-            await run_social_publish(session, notify)
+            await run_social_publish(session, notify, send_file)
 
         elif lower.startswith("edit:") or lower.startswith("правка:"):
             instructions = re.sub(r'^(edit:|правка:)\s*', '', text, flags=re.IGNORECASE).strip()
             await send_md(update, f"✏️ Применяю правки: _{instructions}_\n\nПересоздаю сайт...")
 
-            from ..agents.web_builder import build_website, save_website, slugify
-            import asyncio
-
-            prompt_addition = f"\n\nUser requested these changes: {instructions}"
-            session.concert_info["_edit_instructions"] = prompt_addition
-
-            async def notify(msg: str):
-                await context.bot.send_message(chat_id, msg, parse_mode=ParseMode.MARKDOWN)
-
-            await run_build_site(session, notify)
+            session.concert_info["_edit_instructions"] = instructions
+            notify, send_file = make_notifiers(chat_id, context.bot)
+            await run_build_site(session, notify, send_file)
 
         else:
             await send_md(update,
                 "Ответь:\n"
                 "✅ *approve* — задеплоить сайт\n"
-                "✏️ *edit: [что изменить]* — внести правки"
+                "✏️ *правка: [что изменить]* — внести правки"
             )
         return
 
