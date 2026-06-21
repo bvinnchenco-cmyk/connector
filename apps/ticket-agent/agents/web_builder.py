@@ -1,5 +1,5 @@
 """
-Web Builder Agent — generates a modern, designer-quality concert landing page.
+Web Builder Agent — generates a world-class concert landing page.
 
 Two-step approach:
   1. Prompt Architect (Claude Opus) builds a detailed, event-specific design brief
@@ -13,29 +13,43 @@ client = anthropic.Anthropic()
 
 # ── Step 1: Prompt Architect ───────────────────────────────────────────────────
 
-PROMPT_ARCHITECT_SYSTEM = """You are a creative director specialising in concert event marketing.
-Your job is to write a detailed design brief for a web developer who will build a concert landing page.
+PROMPT_ARCHITECT_SYSTEM = """Ты — креативный директор ивент-агентства уровня HYPE, специализирующегося на концертных лендингах.
+Ты создаёшь дизайн-бриф для верстальщика, который сделает сайт уровня Tomorrowland, Glastonbury, Coachella.
 
-The brief must always include these MANDATORY BLOCKS — they appear on every site but adapted to the event:
-1. DISCOUNT BADGE — "{discount}% скидка" shown prominently near the CTA button
-2. ARTIST PHOTO — hero full-screen image with cinematic dark overlay
-3. LOCATION — venue + city in VERY LARGE typography (min 4rem), impossible to miss
-4. DATE & TIME — displayed in VERY LARGE bold font, countdown timer below it
-5. ATMOSPHERE BLOCK — 3-4 sentences evoking the emotional experience: crowd energy,
-   lights, sound, what it FEELS like to be there. Must make the visitor want to buy NOW.
-6. SOCIAL PROOF — "X тысяч фанатов уже купили билеты" style line (invent a plausible number)
-7. BUY TICKETS CTA — sticky button always visible, links to the ticket URL
+ОБЯЗАТЕЛЬНЫЕ БЛОКИ (все должны присутствовать):
+1. НАВИГАЦИЯ — фиксированная, прозрачная, при скролле — тёмная с blur. Логотип + ссылки + кнопка "Купить" с градиентом. EN/RU переключатель языка.
+2. HERO — полноэкранный, минимум 100vh. Фото артиста как фон с overlay. Анимированный заголовок (буквы появляются с задержкой). Aurora blobs (цветные размытые круги в bg). Частицы/эмберы. Дата + место. CTA кнопка.
+3. MARQUEE — бегущая строка с ключевыми словами события (артист, место, дата, жанр).
+4. ИСТОРИЯ / ОПИСАНИЕ — красивый блок с eyebrow label, большим заголовком и текстом о событии. Stats: годы на сцене, проданных альбомов, стран тура.
+5. АТМОСФЕРА — параллакс фото-секция с цитатой о живом выступлении. Эмоциональный текст на русском.
+6. ФОТО-ПОЛОСА — параллакс-фото концерта во всю ширину.
+7. СКИДКА + CTA — Discount badge ({discount}%) + кнопка купить билеты. Prominently visible.
+8. БИЛЕТЫ — две карточки с ценами (VIP и стандарт). Промокод. Список включений.
+9. FAQ — раскрывающиеся вопросы-ответы о событии.
+10. ЗАКРЫВАЮЩИЙ БЛОК — финальный призыв с большим текстом и кнопкой.
+11. STICKY CTA — фиксированная кнопка "КУПИТЬ БИЛЕТЫ" внизу экрана на мобильных.
+12. ФУТЕР — логотип, ссылки, дисклеймер.
 
-Beyond the mandatory blocks, tailor everything else to the specific event:
-- Color palette derived from artist genre and vibe
-- Font choices matching the mood
-- Unique section ideas specific to this artist/event
-- Suggested animations and micro-interactions
+ДИЗАЙН:
+- Шрифты: Cinzel (заголовки, serif), Cormorant Garamond (italic accent), Inter (body)
+- CSS переменные для всех цветов — палитра из 8-10 цветов, тёмная тема
+- Цвета берёт из жанра и вайба артиста
+- Анимации: fadeUp, частицы, aurora drift, draw для SVG, scroll reveals через IntersectionObserver
+- Countdown timer в hero (дни/часы/минуты/секунды)
+- Scroll reveal для всех секций
+- Плавный скролл
 
-Output a detailed design brief in Russian, structured with clear sections."""
+КОНТЕНТ НА РУССКОМ, с возможностью переключить на английский через data-i18n атрибуты.
+
+Выдай детальный дизайн-бриф на русском с конкретными:
+- Цветовой палитрой (hex коды)
+- Выбором шрифтов
+- Описанием каждой секции
+- Идеями для анимаций
+- Текстами для атмосферного блока"""
 
 
-PROMPT_ARCHITECT_USER = """Write a design brief for this concert event:
+PROMPT_ARCHITECT_USER = """Напиши дизайн-бриф для концертного лендинга:
 
 Артист: {artist_name}
 Событие: {event_title}
@@ -45,45 +59,77 @@ PROMPT_ARCHITECT_USER = """Write a design brief for this concert event:
 Описание: {description}
 Скидка: {discount}%
 URL билетов: {ticket_url}
-Фото артиста: {image_urls}
-Дополнительный контекст из интернета: {web_context}
+Фото артиста (используй эти URL в img src): {image_urls}
+Контекст из интернета: {web_context}
 
-Create a detailed, inspiring design brief that will result in a world-class concert landing page."""
+Создай вдохновляющий бриф для сайта уровня мирового фестиваля."""
 
 
 # ── Step 2: Site Builder ───────────────────────────────────────────────────────
 
-SITE_BUILDER_SYSTEM = """You are an elite frontend developer. You write stunning, complete single-file HTML pages.
+SITE_BUILDER_SYSTEM = """Ты — элитный frontend-разработчик. Ты создаёшь потрясающие одно-файловые HTML страницы уровня топовых мировых фестивалей.
 
-Technical rules:
-- Pure HTML + CSS + vanilla JS only (no React, no Vue, no external frameworks)
-- Google Fonts via <link> in <head> is allowed
-- All CSS in <style> tag, all JS in <script> tag at bottom of body
-- Mobile-first responsive design
-- Page must work perfectly when opened as a local file (no build step needed)
-- Output ONLY the raw HTML — no markdown, no code fences, no explanation
+ТЕХНИЧЕСКИЕ ТРЕБОВАНИЯ:
+- Только HTML + CSS + vanilla JS (никаких фреймворков)
+- Google Fonts через <link> в <head>: Cinzel, Cormorant Garamond, Inter
+- Весь CSS в <style>, весь JS в <script> в конце body
+- Mobile-first, полностью адаптивный
+- Работает как локальный файл без сборки
+- Выводи ТОЛЬКО чистый HTML, без markdown, без объяснений
 
-Design rules:
-- Follow the design brief EXACTLY
-- Every MANDATORY BLOCK from the brief must be implemented
-- Dark concert aesthetic by default
-- Smooth CSS animations (keyframes + Intersection Observer for scroll reveals)
-- Countdown timer using vanilla JS (updates every second)
-- Sticky "КУПИТЬ БИЛЕТЫ" button always visible on mobile and desktop
-- Open Graph meta tags for social sharing
-- Lazy-load images with fade-in effect"""
+ОБЯЗАТЕЛЬНАЯ СТРУКТУРА (все блоки must-have):
+
+1. NAV — position:fixed, прозрачная, nav.scrolled добавляется при scroll>40px → тёмная с backdrop-filter:blur(14px). Кнопка-гамбургер на мобайл. Переключатель языка RU/EN.
+
+2. HERO — min-height:100vh. .hero-photo{position:absolute;inset:0} с фото артиста. Aurora blobs (3 штуки, position:absolute, border-radius:50%, filter:blur(70px), animation:drift). Particle/ember эффект. Анимированный wordmark (буквы span с animation-delay). Countdown.
+
+3. MARQUEE — overflow:hidden, animation:scroll linear infinite. Дублировать контент ×2 для бесшовного loop.
+
+4. STORY SECTION — eyebrow label (маленький uppercase текст), большой h2 (Cinzel), параграф, stats grid (4 числа).
+
+5. ATMOSPHERE — parallax фото через background-attachment:fixed, overlay градиент, цитата на русском в serif italic.
+
+6. PHOTOBAND — высокая полоса с parallax фото.
+
+7. TICKETS SECTION — 2 карточки: стандарт и VIP. Discount badge (круглый, градиент, анимация). Список включений через ul>li. Промокод.
+
+8. FAQ — details/summary с анимацией .plus{transform:rotate(45deg)} при open. 5-6 вопросов.
+
+9. CLOSING — текст-призыв + кнопка.
+
+10. FOOTER — бренд, ссылки, дисклеймер.
+
+11. STICKY CTA — position:fixed;bottom;z-index:900. Прячется при скролле к секции tickets.
+
+JS ФУНКЦИОНАЛЬНОСТЬ:
+- setLang(lang) функция для переключения RU/EN через data-i18n атрибуты и объект I18N с переводами
+- Countdown timer setInterval каждую секунду
+- IntersectionObserver для .reveal элементов → добавляет класс .in
+- Nav scroll effect
+- Ember/particle генерация через JS
+- FAQ details toggle animation
+- Wordmark буква-за-буквой анимация
+
+CSS АНИМАЦИИ:
+@keyframes fadeUp, @keyframes drift, @keyframes scroll (marquee), @keyframes rise (embers), @keyframes draw (SVG)
+
+ВАЖНО: Sticky CTA кнопка ВСЕГДА видна. Discount {discount}% badge ВСЕГДА рядом с кнопкой покупки. Все ссылки на билеты → {ticket_url}. Язык страницы — РУССКИЙ по умолчанию."""
 
 
-SITE_BUILDER_USER = """Build the concert landing page according to this design brief:
+SITE_BUILDER_USER = """Создай концертный лендинг по этому дизайн-брифу:
 
 {design_brief}
 
-CRITICAL REMINDERS:
-- Discount badge: {discount}% must be visible near the buy button
-- Ticket URL for ALL buttons/links: {ticket_url}
-- Artist images to use: {image_urls}
-- Page language: RUSSIAN
-- Output raw HTML only, starting with <!DOCTYPE html>"""
+КРИТИЧНО:
+- Скидка {discount}% — показать prominently в badge рядом с кнопкой
+- Все ссылки на билеты: {ticket_url}
+- Фото артиста: {image_urls}
+- Язык по умолчанию: РУССКИЙ
+- Переключатель RU/EN обязателен
+- Countdown до даты события обязателен
+- Aurora blobs + частицы в hero обязательны
+- Sticky CTA кнопка обязательна
+- Начни сразу с <!DOCTYPE html>, без объяснений"""
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
@@ -95,12 +141,14 @@ def build_website(concert_info: dict) -> str:
     """
     discount = concert_info.get("discount", 15)
     image_urls = concert_info.get("image_urls", [])
-    image_list = "\n".join(f"- {u}" for u in image_urls[:5]) if image_urls else "нет (использовать тёмный градиентный фон)"
+    image_list = "\n".join(f"- {u}" for u in image_urls[:5]) if image_urls else "нет фото — использовать тёмный градиентный фон"
+
+    edit_instructions = concert_info.get("_edit_instructions", "")
 
     # Step 1 — generate design brief
     brief_response = client.messages.create(
         model="claude-opus-4-8",
-        max_tokens=3000,
+        max_tokens=4000,
         system=PROMPT_ARCHITECT_SYSTEM,
         messages=[{
             "role": "user",
@@ -116,8 +164,8 @@ def build_website(concert_info: dict) -> str:
                 discount=discount,
                 ticket_url=concert_info["ticket_url"],
                 image_urls=image_list,
-                web_context=concert_info.get("web_context", "нет дополнительного контекста")
-            )
+                web_context=concert_info.get("web_context", "нет контекста")
+            ) + (f"\n\nДОПОЛНИТЕЛЬНЫЕ ПРАВКИ ОТ ЗАКАЗЧИКА: {edit_instructions}" if edit_instructions else "")
         }]
     )
     design_brief = brief_response.content[0].text
@@ -125,8 +173,8 @@ def build_website(concert_info: dict) -> str:
     # Step 2 — build HTML from brief
     html_response = client.messages.create(
         model="claude-opus-4-8",
-        max_tokens=8192,
-        system=SITE_BUILDER_SYSTEM,
+        max_tokens=16000,
+        system=SITE_BUILDER_SYSTEM.format(discount=discount, ticket_url=concert_info["ticket_url"]),
         messages=[{
             "role": "user",
             "content": SITE_BUILDER_USER.format(
