@@ -1,6 +1,6 @@
 """
 Orchestrator Agent — manages the full pipeline from raw input to published site + social posts.
-Coordinates: Researcher → WebBuilder → (user approval) → Deployer → SocialMedia
+Coordinates: Researcher → WebBuilder → (user approval) → Deployer → VideoRenderer → SocialMedia
 """
 import asyncio
 import logging
@@ -37,13 +37,12 @@ class PipelineSession:
     html_path: str | None = None
     deployment: dict | None = None
     social_results: list = field(default_factory=list)
-    video_paths: dict = field(default_factory=dict)   # {"square": "/tmp/...", "portrait": "/tmp/..."}
-    scheduled_time: str | None = None                 # ISO 8601, set by user before publishing
+    video_paths: dict = field(default_factory=dict)
+    scheduled_time: str | None = None
     state: PipelineState = PipelineState.IDLE
     error: str | None = None
 
 
-# In-memory session store (one active session per Telegram chat_id)
 _sessions: dict[int, PipelineSession] = {}
 
 
@@ -58,9 +57,8 @@ def create_session(chat_id: int, raw_input: str, ticket_url: str) -> PipelineSes
 
 
 async def run_research(session: PipelineSession, send_update) -> bool:
-    """Step 1: Research the concert."""
     session.state = PipelineState.RESEARCHING
-    await send_update("🔍 Researching artist and event details...")
+    await send_update("🔍 Собираю информацию об артисте и мероприятии...")
 
     try:
         session.concert_info = await asyncio.to_thread(
@@ -68,12 +66,12 @@ async def run_research(session: PipelineSession, send_update) -> bool:
         )
         info = session.concert_info
         summary = (
-            f"✅ *Research complete!*\n\n"
-            f"🎤 *Artist:* {info['artist_name']}\n"
-            f"🎫 *Event:* {info['event_title']}\n"
-            f"📅 *Date:* {info['date']}\n"
-            f"📍 *Venue:* {info['venue']}, {info['city']}, {info['country']}\n"
-            f"🎵 *Genre:* {info['genre']}\n\n"
+            f"✅ *Исследование завершено!*\n\n"
+            f"🎤 *Артист:* {info['artist_name']}\n"
+            f"🎫 *Событие:* {info['event_title']}\n"
+            f"📅 *Дата:* {info['date']}\n"
+            f"📍 *Место:* {info['venue']}, {info['city']}, {info['country']}\n"
+            f"🎵 *Жанр:* {info['genre']}\n\n"
             f"_{info['description']}_"
         )
         await send_update(summary)
@@ -81,14 +79,13 @@ async def run_research(session: PipelineSession, send_update) -> bool:
     except Exception as e:
         session.state = PipelineState.FAILED
         session.error = str(e)
-        await send_update(f"❌ Research failed: {e}")
+        await send_update(f"❌ Ошибка при сборе информации: {e}")
         return False
 
 
 async def run_build_site(session: PipelineSession, send_update) -> bool:
-    """Step 2: Build the website."""
     session.state = PipelineState.BUILDING_SITE
-    await send_update("🎨 Building your concert landing page...")
+    await send_update("🎨 Создаю концертный лендинг... Это займёт около минуты.")
 
     try:
         html = await asyncio.to_thread(build_website, session.concert_info)
@@ -99,44 +96,41 @@ async def run_build_site(session: PipelineSession, send_update) -> bool:
 
         session.state = PipelineState.AWAITING_APPROVAL
         await send_update(
-            f"✅ *Website ready!*\n\n"
-            f"The page has been generated for *{session.concert_info['event_title']}*.\n\n"
-            f"Reply with:\n"
-            f"✅ *approve* — to deploy and publish\n"
-            f"✏️ *edit: [instructions]* — to request changes"
+            f"✅ *Лендинг готов!*\n\n"
+            f"Создан сайт для *{session.concert_info['event_title']}*.\n\n"
+            f"Что делаем дальше?\n"
+            f"✅ *approve* — задеплоить и опубликовать\n"
+            f"✏️ *правка: [что изменить]* — внести правки"
         )
         return True
     except Exception as e:
         session.state = PipelineState.FAILED
         session.error = str(e)
-        await send_update(f"❌ Site build failed: {e}")
+        await send_update(f"❌ Ошибка при создании сайта: {e}")
         return False
 
 
 async def run_deploy(session: PipelineSession, send_update) -> bool:
-    """Step 3: Deploy to hosting."""
     session.state = PipelineState.DEPLOYING
-    await send_update("🚀 Deploying site to hosting...")
+    await send_update("🚀 Публикую сайт на хостинг...")
 
     try:
         slug = slugify(session.concert_info["artist_name"])
         session.deployment = await asyncio.to_thread(deploy, session.html_path, slug)
 
         url = session.deployment["subdomain_url"]
-        await send_update(f"✅ *Site deployed!*\n🌐 {url}")
+        await send_update(f"✅ *Сайт опубликован!*\n🌐 {url}")
         return True
     except Exception as e:
         session.state = PipelineState.FAILED
         session.error = str(e)
-        await send_update(f"❌ Deployment failed: {e}")
+        await send_update(f"❌ Ошибка при деплое: {e}")
         return False
 
 
 async def run_render_video(session: PipelineSession, send_update) -> bool:
-    """Step 3b: Render cinematic promo video via Remotion."""
     await send_update("🎬 Рендерю промо-видео (15 сек)... Это займёт 1-2 минуты.")
 
-    # Pass site_url into concert_info so video shows it
     session.concert_info["site_url"] = session.deployment["subdomain_url"]
 
     try:
@@ -145,25 +139,23 @@ async def run_render_video(session: PipelineSession, send_update) -> bool:
 
         lines = []
         for fmt, path in paths.items():
-            status = "✅" if not path.startswith("ERROR") else "❌"
+            status = "✅" if not str(path).startswith("ERROR") else "❌"
             lines.append(f"{status} {fmt}: `{path}`")
 
         await send_update(
             "🎬 *Видео готово!*\n\n"
             + "\n".join(lines)
-            + "\n\nПосмотри результат и напиши *approve* для публикации или *edit video: [что изменить]*"
         )
         return True
     except Exception as e:
         session.error = str(e)
-        await send_update(f"❌ Рендер видео упал: {e}")
+        await send_update(f"❌ Ошибка при рендере видео: {e}")
         return False
 
 
 async def run_social_publish(session: PipelineSession, send_update) -> bool:
-    """Step 4: Publish social media posts."""
     session.state = PipelineState.PUBLISHING_SOCIAL
-    await send_update("📢 Publishing to social media...")
+    await send_update("📢 Публикую в социальные сети...")
 
     try:
         site_url = session.deployment["subdomain_url"]
@@ -171,20 +163,22 @@ async def run_social_publish(session: PipelineSession, send_update) -> bool:
             publish_all,
             session.concert_info,
             site_url,
-            None,                      # image_path — TODO: add poster generation
+            None,
             session.video_paths,
             session.scheduled_time,
         )
         session.social_results = publish_result["results"]
-        captions = publish_result["captions"]
 
         posted = [r["platform"] for r in session.social_results if r.get("status") == "posted"]
+        scheduled = [r["platform"] for r in session.social_results if r.get("status") == "scheduled"]
         skipped = [r["platform"] for r in session.social_results if r.get("status") in ("skipped", "error")]
 
         session.state = PipelineState.DONE
-        msg = "🎉 *Готово!*\n\n"
+        msg = "🎉 *Готово! Всё опубликовано.*\n\n"
         if posted:
             msg += f"✅ Опубликовано: {', '.join(posted)}\n"
+        if scheduled:
+            msg += f"⏰ Запланировано: {', '.join(scheduled)}\n"
         if skipped:
             msg += f"⚠️ Пропущено: {', '.join(skipped)}\n"
         msg += f"\n🌐 Сайт: {site_url}\n🎫 Билеты: {session.concert_info['ticket_url']}"
@@ -194,5 +188,5 @@ async def run_social_publish(session: PipelineSession, send_update) -> bool:
     except Exception as e:
         session.state = PipelineState.FAILED
         session.error = str(e)
-        await send_update(f"❌ Social publishing failed: {e}")
+        await send_update(f"❌ Ошибка при публикации: {e}")
         return False
