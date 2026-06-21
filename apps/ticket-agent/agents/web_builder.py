@@ -113,7 +113,7 @@ JS ФУНКЦИОНАЛЬНОСТЬ:
 CSS АНИМАЦИИ:
 @keyframes fadeUp, @keyframes drift, @keyframes scroll (marquee), @keyframes rise (embers), @keyframes draw (SVG)
 
-ВАЖНО: Sticky CTA кнопка ВСЕГДА видна. Discount {discount}% badge ВСЕГДА рядом с кнопкой покупки. Все ссылки на билеты → {ticket_url}. Язык страницы — РУССКИЙ по умолчанию."""
+ВАЖНО: Sticky CTA кнопка ВСЕГДА видна. Discount DISCOUNT_PCT% badge ВСЕГДА рядом с кнопкой покупки. Все ссылки на билеты → TICKET_URL_PLACEHOLDER. Язык страницы — РУССКИЙ по умолчанию."""
 
 
 SITE_BUILDER_USER = """Создай концертный лендинг по этому дизайн-брифу:
@@ -174,7 +174,7 @@ def build_website(concert_info: dict) -> str:
     html_response = client.messages.create(
         model="claude-opus-4-8",
         max_tokens=16000,
-        system=SITE_BUILDER_SYSTEM.format(discount=discount, ticket_url=concert_info["ticket_url"]),
+        system=SITE_BUILDER_SYSTEM.replace("DISCOUNT_PCT", str(discount)).replace("TICKET_URL_PLACEHOLDER", concert_info["ticket_url"]),
         messages=[{
             "role": "user",
             "content": SITE_BUILDER_USER.format(
